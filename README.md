@@ -1,5 +1,7 @@
 # JogjaPulse: processing code
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23244140.svg)](https://doi.org/10.5281/zenodo.23244140)
+
 Code used to build and validate aggregated mobility products for the Special Region of
 Yogyakarta (DIY), Indonesia, from device-level GPS pings (December 2021 to April 2022).
 All scripts are in [`release/`](release/).
@@ -71,6 +73,10 @@ unsuppressed output of script 5.
 
 Scripts resolve paths relative to `release/`. Outputs are written to `release/output/`
 (released products) and `release/od_work/` (internal analysis).
+
+## Citation
+
+Please cite the archived release: https://doi.org/10.5281/zenodo.23244140
 
 ## License
 
