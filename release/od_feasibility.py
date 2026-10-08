@@ -18,7 +18,7 @@ NIGHT_START, NIGHT_END = 22, 6   # home: 22:00-05:59 WIB; pings before 06:00 bel
 DAY_START, DAY_END = 8, 18       # destinations: 08:00-17:59 WIB
 OD_MIN_NIGHTS = 2                # home must be observed on >= 2 distinct nights in the month
 
-kap = spark.createDataFrame(pd.read_csv("kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
+kap = spark.createDataFrame(pd.read_csv("data/kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 pings = (
     spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")

@@ -9,7 +9,7 @@ from scipy.stats import pearsonr
 K = int(os.environ.get("TIER1_K", 5))  # which Tier-1 build to validate (see tier1_presence.py)
 OUT_DIR = "output" if K == 5 else f"output_k{K}"
 HOURLY_CSV = f"{OUT_DIR}/presence_kapanewon_hourly.csv"
-VALIDATION_CSV = "../validation/validasi_kapanewon_des2021_apr2022.csv"
+VALIDATION_CSV = "data/validasi_kapanewon_des2021_apr2022.csv"
 OUTPUT_CSV = f"{OUT_DIR}/validation_night_presence_kapanewon.csv"
 
 NIGHT_HOURS = range(0, 6)  # 00:00-05:59 WIB, proxy for residential population

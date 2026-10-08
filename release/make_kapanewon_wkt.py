@@ -4,11 +4,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # resolve relative paths f
 
 import geopandas as gpd
 
-BOUNDARY_SHP = (
-    "/Users/widyawan/Library/CloudStorage/GoogleDrive-widyawan@ugm.ac.id/"
-    "My Drive/mypaper/2026 Scientific Data/data/batas wilayah DIY/diy_kalurahan_2023.shp"
-)
-OUTPUT_CSV = "kapanewon_wkt.csv"
+BOUNDARY_SHP = "data/diy_kalurahan_2023/diy_kalurahan_2023.shp"  # Geoportal DIY 2023
+OUTPUT_CSV = "data/kapanewon_wkt.csv"
 
 # Dissolve 438 kalurahan (Geoportal DIY 2023) into 78 kapanewon polygons, WGS84, as WKT for Spark/Sedona
 gdf = gpd.read_file(BOUNDARY_SHP).to_crs("EPSG:4326")

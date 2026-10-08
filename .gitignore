@@ -14,3 +14,6 @@ Claude outputs/
 
 # Local config (may contain credentials)
 spark-connect.yaml
+
+# Public input data shipped with the release scripts
+!release/data/*.csv
