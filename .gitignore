@@ -1,0 +1,16 @@
+# Environments / editor
+.venv*/
+.vscode/
+.DS_Store
+__pycache__/
+*.pyc
+
+# Data and outputs
+*.csv
+*.parquet
+output*/
+od_work/
+Claude outputs/
+
+# Local config (may contain credentials)
+spark-connect.yaml
