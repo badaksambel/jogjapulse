@@ -20,7 +20,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 #   cells or hours, so they are safe in both products.
 
 # Kapanewon polygons (dissolved from Geoportal DIY 2023 kalurahan, see make_kapanewon_wkt.py)
-kap = spark.createDataFrame(pd.read_csv("kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
+kap = spark.createDataFrame(pd.read_csv("data/kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 raw = spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")
 n_raw = raw.count()

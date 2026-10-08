@@ -12,11 +12,11 @@ WORK = "od_work"  # internal, unsuppressed counts from od_feasibility.py
 K = 5
 
 # Kapanewon codes, names, centroids (UTM 49S) and BPS population
-kap = gpd.GeoDataFrame(pd.read_csv("kapanewon_wkt.csv"),
-                       geometry=gpd.GeoSeries.from_wkt(pd.read_csv("kapanewon_wkt.csv")["wkt"]), crs="EPSG:4326")
+kap = gpd.GeoDataFrame(pd.read_csv("data/kapanewon_wkt.csv"),
+                       geometry=gpd.GeoSeries.from_wkt(pd.read_csv("data/kapanewon_wkt.csv")["wkt"]), crs="EPSG:4326")
 kap = kap.to_crs("EPSG:32749")
 kap["cx"], kap["cy"] = kap.geometry.centroid.x, kap.geometry.centroid.y
-val = pd.read_csv("../validation/validasi_kapanewon_des2021_apr2022.csv")
+val = pd.read_csv("data/validasi_kapanewon_des2021_apr2022.csv")
 kap = kap.merge(val[["KAB_KOTA", "KEC_KAPN", "pop_actual"]], on=["KAB_KOTA", "KEC_KAPN"])
 kap = pd.DataFrame(kap[["KEC_CODE", "KEC_KAPN", "cx", "cy", "pop_actual"]])
 assert len(kap) == 78

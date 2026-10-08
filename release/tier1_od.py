@@ -24,7 +24,7 @@ MONTHS = ["2021-12", "2022-01", "2022-02", "2022-03", "2022-04"]
 REDUCED_QUALITY = {"2022-03", "2022-04"}  # small device panel, weak gravity fit (see README)
 OUT_DIR = "output"
 
-kap_pd = pd.read_csv("kapanewon_wkt.csv")
+kap_pd = pd.read_csv("data/kapanewon_wkt.csv")
 kap = spark.createDataFrame(kap_pd).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 pings = (
