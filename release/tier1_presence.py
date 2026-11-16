@@ -5,8 +5,13 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # resolve relative paths f
 import pandas as pd
 from pyspark.sql import SparkSession, functions as F
 
+from source_data import load_pings, raw_pings
+
 # Tunnel address; override with SPARK_REMOTE=sc://localhost:15003 etc.
 spark = SparkSession.builder.remote(os.environ.get("SPARK_REMOTE", "sc://localhost:15002")).getOrCreate()
+# datetime is WIB wall-clock time stored without a zone; hour()/to_date() read it in the session time zone,
+# so the session must be UTC (checked, never changed here)
+assert spark.conf.get("spark.sql.session.timeZone") in ("UTC", "Etc/UTC", "GMT"), "Spark session time zone must be UTC"
 
 K = int(os.environ.get("TIER1_K", 5))  # minimum distinct MAIDs per published row (small-count suppression)
 CELL_M = 500      # grid cell size in metres, UTM zone 49S (EPSG:32749)
@@ -22,8 +27,9 @@ os.makedirs(OUT_DIR, exist_ok=True)
 # Kapanewon polygons (dissolved from Geoportal DIY 2023 kalurahan, see make_kapanewon_wkt.py)
 kap = spark.createDataFrame(pd.read_csv("data/kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
-raw = spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")
-n_raw = raw.count()
+n_raw = raw_pings(spark).count()
+raw = load_pings(spark)  # source pings without default coordinates (source_data.py)
+n_kept = raw.count()
 
 pings = (
     raw
@@ -40,7 +46,7 @@ pings = (
     .cache()
 )
 n_diy = pings.count()
-print(f"pings: {n_raw:,} raw, {n_diy:,} inside DIY ({n_diy / n_raw * 100:.1f}%)")
+print(f"pings: {n_raw:,} raw, {n_kept:,} after removing default points, {n_diy:,} inside DIY ({n_diy / n_kept * 100:.1f}%)")
 
 # ============================================================
 # A. Presence per 500 m cell per day
@@ -109,7 +115,8 @@ summary = pd.DataFrame([
      "maid_presence_suppressed_pct": lost["B_kapanewon_hourly"],
      "n_cells_published": b_pd["kapanewon_code"].nunique()},
 ])
-summary.insert(0, "pings_inside_diy_pct", round(n_diy / n_raw * 100, 1))
+summary.insert(0, "pings_inside_diy_pct", round(n_diy / n_kept * 100, 1))
+summary.insert(0, "pings_default_removed_pct", round((1 - n_kept / n_raw) * 100, 1))
 summary.to_csv(f"{OUT_DIR}/tier1_summary.csv", index=False)
 print(summary.to_string(index=False))
 print(f"Tersimpan: {OUT_DIR}/presence_cell500m_daily.csv ({len(a_pd):,} baris), "

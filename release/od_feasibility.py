@@ -4,10 +4,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # resolve relative paths f
 
 import pandas as pd
 from pyspark.sql import SparkSession, functions as F
+
+from source_data import load_pings
 from pyspark.sql import Window
 
 # Tunnel address; override with SPARK_REMOTE=sc://localhost:15003 etc.
 spark = SparkSession.builder.remote(os.environ.get("SPARK_REMOTE", "sc://localhost:15002")).getOrCreate()
+# datetime is WIB wall-clock time stored without a zone; hour()/to_date() read it in the session time zone,
+# so the session must be UTC (checked, never changed here)
+assert spark.conf.get("spark.sql.session.timeZone") in ("UTC", "Etc/UTC", "GMT"), "Spark session time zone must be UTC"
 
 # Feasibility of a home-based origin-destination (OD) product at kapanewon level.
 # Outputs are UNSUPPRESSED internal counts for analysis only -- do not release od_work/.
@@ -21,7 +26,7 @@ OD_MIN_NIGHTS = 2                # home must be observed on >= 2 distinct nights
 kap = spark.createDataFrame(pd.read_csv("data/kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 pings = (
-    spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")
+    load_pings(spark)  # source pings without default coordinates (source_data.py)
     .withColumn("pt", F.expr("ST_Point(longitude, latitude)"))
     .join(F.broadcast(kap), F.expr("ST_Contains(geom, pt)"))
     .select(

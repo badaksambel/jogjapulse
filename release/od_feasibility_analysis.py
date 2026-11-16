@@ -32,7 +32,7 @@ home = home[home["month"] >= "2021-12"]
 rows = []
 for month, g in home.groupby("month"):
     g = g.set_index("home_kap").reindex(kap["KEC_CODE"]).fillna(0)
-    keep = (name.reindex(g.index) != "GONDOMANAN").values
+    keep = np.ones(len(g), bool)  # all 78 kapanewon (no outlier once default coordinates are removed)
     for t in (1, 2, 3):
         x, y = pop.reindex(g.index).values[keep], g[f"n_home_min{t}"].values[keep]
         ok = y > 0
@@ -41,7 +41,7 @@ for month, g in home.groupby("month"):
                      "r_loglog": round(pearsonr(np.log10(x[ok]), np.log10(y[ok]))[0], 3),
                      "kapanewon_with_homes": int(ok.sum())})
 home_res = pd.DataFrame(rows)
-print("== Homes per month vs BPS (excl. Gondomanan) ==\n", home_res.to_string(index=False))
+print("== Homes per month vs BPS (all kapanewon) ==\n", home_res.to_string(index=False))
 
 # ============================================================
 # 2. OD suppression at k: monthly and weekly (inter-zonal flows, i != j)
