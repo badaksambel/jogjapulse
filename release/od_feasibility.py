@@ -3,16 +3,16 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))  # resolve relative paths from this folder
 
 import pandas as pd
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import functions as F
+
+from source_data import get_spark, load_pings, out_dir
 from pyspark.sql import Window
 
-# Tunnel address; override with SPARK_REMOTE=sc://localhost:15003 etc.
-spark = SparkSession.builder.remote(os.environ.get("SPARK_REMOTE", "sc://localhost:15002")).getOrCreate()
+spark = get_spark("od_feasibility")  # Spark Connect or local; session time zone checked (source_data.py)
 
 # Feasibility of a home-based origin-destination (OD) product at kapanewon level.
 # Outputs are UNSUPPRESSED internal counts for analysis only -- do not release od_work/.
-OUT_DIR = "od_work"
-os.makedirs(OUT_DIR, exist_ok=True)
+OUT_DIR = out_dir("od_work")
 
 NIGHT_START, NIGHT_END = 22, 6   # home: 22:00-05:59 WIB; pings before 06:00 belong to the previous night
 DAY_START, DAY_END = 8, 18       # destinations: 08:00-17:59 WIB
@@ -21,7 +21,7 @@ OD_MIN_NIGHTS = 2                # home must be observed on >= 2 distinct nights
 kap = spark.createDataFrame(pd.read_csv("data/kapanewon_wkt.csv")).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 pings = (
-    spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")
+    load_pings(spark)  # source pings without default coordinates (source_data.py)
     .withColumn("pt", F.expr("ST_Point(longitude, latitude)"))
     .join(F.broadcast(kap), F.expr("ST_Contains(geom, pt)"))
     .select(

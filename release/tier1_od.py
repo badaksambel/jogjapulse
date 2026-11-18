@@ -3,11 +3,12 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))  # resolve relative paths from this folder
 
 import pandas as pd
-from pyspark.sql import SparkSession, functions as F
+from pyspark.sql import functions as F
+
+from source_data import get_spark, load_pings, out_dir
 from pyspark.sql import Window
 
-# Tunnel address; override with SPARK_REMOTE=sc://localhost:15003 etc.
-spark = SparkSession.builder.remote(os.environ.get("SPARK_REMOTE", "sc://localhost:15002")).getOrCreate()
+spark = get_spark("tier1_od")  # Spark Connect or local; session time zone checked (source_data.py)
 
 # Home-based visitation OD between kapanewon, per month (same definitions as od_feasibility.py).
 #   Home:        per MAID and month, the kapanewon with the most distinct nights 22:00-05:59 WIB
@@ -22,13 +23,13 @@ NIGHT_START, NIGHT_END = 22, 6
 DAY_START, DAY_END = 8, 18
 MONTHS = ["2021-12", "2022-01", "2022-02", "2022-03", "2022-04"]
 REDUCED_QUALITY = {"2022-03", "2022-04"}  # small device panel, weak gravity fit (see README)
-OUT_DIR = "output"
+OUT_DIR = out_dir("output")
 
 kap_pd = pd.read_csv("data/kapanewon_wkt.csv")
 kap = spark.createDataFrame(kap_pd).withColumn("geom", F.expr("ST_GeomFromWKT(wkt)")).drop("wkt")
 
 pings = (
-    spark.read.parquet("s3a://ilum-jogjapulse/mobility/gps_limited_user_month")
+    load_pings(spark)  # source pings without default coordinates (source_data.py)
     .withColumn("pt", F.expr("ST_Point(longitude, latitude)"))
     .join(F.broadcast(kap), F.expr("ST_Contains(geom, pt)"))
     .select("maid", F.col("KEC_CODE").alias("kap"),
@@ -84,18 +85,50 @@ def label(df, code_col, prefix):
     return df.merge(lab, on=code_col, how="left")
 
 od_all = len(od)
-od_pub = od[od["n_maids"] >= K]
+
+# --- Primary small-cell suppression (counts below k) ---------------------------
+# Denominators: keep an origin row if n_homed_maids >= k; blank n_homed_maids_daytime if < k.
+origin_pub = origin[origin["n_homed_maids"] >= K].copy()
+origin_pub["n_homed_maids_daytime"] = origin_pub["n_homed_maids_daytime"].astype("Int64")  # nullable int: blank = suppressed
+small_daytime = origin_pub["n_homed_maids_daytime"] < K
+origin_pub.loc[small_daytime, "n_homed_maids_daytime"] = pd.NA
+od_pub = od[od["n_maids"] >= K].copy()
+
+# --- Complementary suppression -------------------------------------------------
+# Two published counts (each >= k) must not differ by 1..k-1, otherwise subtracting them
+# reveals a small count:
+#   (1) n_homed_maids - n_homed_maids_daytime   -> blank n_homed_maids_daytime
+#   (2) n_homed_maids - n_maids(i->j)           -> suppress the OD row
+#   (3) n_homed_maids_daytime - n_maids(i->j)   -> suppress the OD row (if the daytime count is published)
+def small_diff(a, b):
+    d = a - b
+    return (d > 0) & (d < K)
+
+comp_daytime = small_diff(origin_pub["n_homed_maids"], origin_pub["n_homed_maids_daytime"]).fillna(False).astype(bool)
+origin_pub.loc[comp_daytime, "n_homed_maids_daytime"] = pd.NA
+
+chk = od_pub.merge(origin_pub[["month", "origin_code", "n_homed_maids", "n_homed_maids_daytime"]],
+                   on=["month", "origin_code"], how="left")
+comp_od = (small_diff(chk["n_homed_maids"], chk["n_maids"]).fillna(False)
+           | small_diff(chk["n_homed_maids_daytime"], chk["n_maids"]).fillna(False)).astype(bool).to_numpy()
+od_pub = od_pub[~comp_od]
+
+# Safety check: no published pair may differ by 1..k-1 any more
+chk = od_pub.merge(origin_pub[["month", "origin_code", "n_homed_maids", "n_homed_maids_daytime"]],
+                   on=["month", "origin_code"], how="left")
+assert not small_diff(origin_pub["n_homed_maids"], origin_pub["n_homed_maids_daytime"]).fillna(False).any()
+assert not small_diff(chk["n_homed_maids"], chk["n_maids"]).fillna(False).any()
+assert not small_diff(chk["n_homed_maids_daytime"], chk["n_maids"]).fillna(False).any()
+print(f"Complementary suppression: {int(comp_daytime.sum())} n_homed_maids_daytime blanked, "
+      f"{int(comp_od.sum())} OD rows suppressed")
+
 od_pub = label(label(od_pub, "origin_code", "origin"), "dest_code", "dest")
 od_pub["reduced_quality"] = od_pub["month"].isin(REDUCED_QUALITY)
 od_pub = od_pub[["month", "origin_kab_code", "origin_kab_kota", "origin_code", "origin_kapanewon",
                  "dest_kab_code", "dest_kab_kota", "dest_code", "dest_kapanewon", "n_maids", "reduced_quality"]]
 od_pub = od_pub.sort_values(["month", "origin_code", "dest_code"])
 
-# Denominators: suppress rows where either count is below k (blank = fewer than k)
-origin_pub = label(origin, "origin_code", "origin")
-origin_pub = origin_pub[origin_pub["n_homed_maids"] >= K].copy()
-origin_pub["n_homed_maids_daytime"] = origin_pub["n_homed_maids_daytime"].astype("Int64")  # nullable int: blank if < k
-origin_pub.loc[origin_pub["n_homed_maids_daytime"] < K, "n_homed_maids_daytime"] = pd.NA
+origin_pub = label(origin_pub, "origin_code", "origin")
 origin_pub["reduced_quality"] = origin_pub["month"].isin(REDUCED_QUALITY)
 origin_pub = origin_pub[["month", "origin_kab_code", "origin_kab_kota", "origin_code", "origin_kapanewon",
                          "n_homed_maids", "n_homed_maids_daytime", "reduced_quality"]].sort_values(["month", "origin_code"])
@@ -104,12 +137,16 @@ od_pub.to_csv(f"{OUT_DIR}/od_home_visits_kapanewon_monthly.csv", index=False)
 origin_pub.to_csv(f"{OUT_DIR}/od_origin_homes_monthly.csv", index=False)
 
 inter = od[od["origin_code"] != od["dest_code"]]
+inter_pub = od_pub[od_pub["origin_code"] != od_pub["dest_code"]]
 summary = pd.DataFrame([{
     "k": K, "min_nights": MIN_NIGHTS,
     "od_rows_total": od_all, "od_rows_published": len(od_pub),
     "od_rows_suppressed_pct": round((1 - len(od_pub) / od_all) * 100, 1),
-    "inter_zonal_flow_kept_pct": round(inter.loc[inter["n_maids"] >= K, "n_maids"].sum() / inter["n_maids"].sum() * 100, 1),
+    "od_rows_complementary_suppressed": int(comp_od.sum()),
+    "inter_zonal_flow_kept_pct": round(inter_pub["n_maids"].sum() / inter["n_maids"].sum() * 100, 1),
     "origin_rows_published": len(origin_pub),
+    "daytime_blanked_lt_k": int(small_daytime.sum()),
+    "daytime_blanked_complementary": int(comp_daytime.sum()),
 }])
 summary.to_csv(f"{OUT_DIR}/od_summary.csv", index=False)
 print(summary.to_string(index=False))

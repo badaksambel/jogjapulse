@@ -1,0 +1,14 @@
+# Spark scripts (release/, temporal/, privacy/, validation/source_data_checks.py, ...).
+# Python 3.10; PySpark must match the Spark server (3.5.7). For JOGJAPULSE_SPARK=local also Java 17;
+# the Sedona jars (sedona-spark-shaded-3.5_2.12 1.8.0, geotools-wrapper 1.8.0-33.1) are fetched from
+# Maven Central on first use (see release/source_data.py).
+pyspark[connect]==3.5.7
+apache-sedona==1.8.0
+pandas==2.3.3
+numpy==1.26.4
+pyarrow==25.0.1
+grpcio==1.84.0
+grpcio-status==1.84.0
+googleapis-common-protos==1.75.4
+protobuf==7.36.2
+shapely==2.1.2

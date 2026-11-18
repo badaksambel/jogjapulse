@@ -8,7 +8,9 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy.stats import pearsonr
 
-WORK = "od_work"  # internal, unsuppressed counts from od_feasibility.py
+from paths import out_dir
+
+WORK = out_dir("od_work")  # internal, unsuppressed counts from od_feasibility.py
 K = 5
 
 # Kapanewon codes, names, centroids (UTM 49S) and BPS population
@@ -16,7 +18,7 @@ kap = gpd.GeoDataFrame(pd.read_csv("data/kapanewon_wkt.csv"),
                        geometry=gpd.GeoSeries.from_wkt(pd.read_csv("data/kapanewon_wkt.csv")["wkt"]), crs="EPSG:4326")
 kap = kap.to_crs("EPSG:32749")
 kap["cx"], kap["cy"] = kap.geometry.centroid.x, kap.geometry.centroid.y
-val = pd.read_csv("data/validasi_kapanewon_des2021_apr2022.csv")
+val = pd.read_csv("data/bps_population_kapanewon_2021.csv")
 kap = kap.merge(val[["KAB_KOTA", "KEC_KAPN", "pop_actual"]], on=["KAB_KOTA", "KEC_KAPN"])
 kap = pd.DataFrame(kap[["KEC_CODE", "KEC_KAPN", "cx", "cy", "pop_actual"]])
 assert len(kap) == 78
@@ -32,7 +34,7 @@ home = home[home["month"] >= "2021-12"]
 rows = []
 for month, g in home.groupby("month"):
     g = g.set_index("home_kap").reindex(kap["KEC_CODE"]).fillna(0)
-    keep = (name.reindex(g.index) != "GONDOMANAN").values
+    keep = np.ones(len(g), bool)  # all 78 kapanewon (no outlier once default coordinates are removed)
     for t in (1, 2, 3):
         x, y = pop.reindex(g.index).values[keep], g[f"n_home_min{t}"].values[keep]
         ok = y > 0
@@ -41,7 +43,7 @@ for month, g in home.groupby("month"):
                      "r_loglog": round(pearsonr(np.log10(x[ok]), np.log10(y[ok]))[0], 3),
                      "kapanewon_with_homes": int(ok.sum())})
 home_res = pd.DataFrame(rows)
-print("== Homes per month vs BPS (excl. Gondomanan) ==\n", home_res.to_string(index=False))
+print("== Homes per month vs BPS (all kapanewon) ==\n", home_res.to_string(index=False))
 
 # ============================================================
 # 2. OD suppression at k: monthly and weekly (inter-zonal flows, i != j)
@@ -89,7 +91,7 @@ for month, g in od_m.groupby("month"):
     # Symmetry of flows i->j vs j->i (pairs published in both directions)
     t = g.set_index(["home_kap", "dest_kap"])["n_maids"]
     both = [(i, j) for i, j in t.index if (j, i) in t.index and i < j]
-    if both:
+    if len(both) >= 3:  # too few pairs for a correlation (e.g. on a small sample)
         a, b = np.log([t[p] for p in both]), np.log([t[(p[1], p[0])] for p in both])
         sym.append({"month": month, "pairs_both_directions": len(both), "r_log_ij_ji": round(pearsonr(a, b)[0], 3)})
 grav_res, sym_res = pd.DataFrame(grav), pd.DataFrame(sym)

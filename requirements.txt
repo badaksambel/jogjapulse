@@ -1,0 +1,13 @@
+# Analysis and figure scripts that read CSV files only (validate_tier1.py, od_feasibility_analysis.py,
+# validation/, validation_od/, temporal/plot_*.py). Tested with Python 3.13.
+pandas==3.0.6
+numpy==2.5.3
+scipy==1.18.1
+statsmodels==0.15.0
+matplotlib==3.11.2
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.8.0
+pyogrio==0.13.0
+# Optional, interactive maps only (not used for the article figures):
+# folium==0.20.0
