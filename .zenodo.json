@@ -1,0 +1,52 @@
+{
+  "title": "JogjaPulse: processing code and synthetic data",
+  "upload_type": "software",
+  "description": "Processing, validation and figure code of the JogjaPulse aggregated mobility dataset for the Special Region of Yogyakarta, Indonesia (December 2021 to April 2022), with synthetic pings on which the whole pipeline runs on a laptop.",
+  "creators": [
+    {
+      "name": "Widyawan",
+      "affiliation": "Department of Electrical Engineering and Information Technology, Universitas Gadjah Mada",
+      "orcid": "0000-0002-0340-1198"
+    },
+    {
+      "name": "Pratama, Azkario Rizky",
+      "affiliation": "Department of Electrical Engineering and Information Technology, Universitas Gadjah Mada",
+      "orcid": "0000-0001-6158-8483"
+    },
+    {
+      "name": "Ariansyah, Agung",
+      "affiliation": "Directorate of Information Technology, Universitas Gadjah Mada"
+    },
+    {
+      "name": "Farda, Nur Mohammad",
+      "affiliation": "Faculty of Geography, Universitas Gadjah Mada",
+      "orcid": "0000-0003-4535-5668"
+    },
+    {
+      "name": "Pramana, Setia",
+      "affiliation": "Politeknik Statistika STIS",
+      "orcid": "0000-0002-8590-1451"
+    },
+    {
+      "name": "Miller, Oliver",
+      "affiliation": "Ilum.cloud"
+    }
+  ],
+  "license": "gpl-3.0-only",
+  "access_right": "open",
+  "keywords": [
+    "human mobility",
+    "origin-destination flows",
+    "mobile location data",
+    "synthetic data",
+    "Yogyakarta"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.24333942",
+      "relation": "compiles",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ]
+}
